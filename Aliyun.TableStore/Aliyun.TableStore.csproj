@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>Aliyun.TableStore SDK for .net core. simply ported from https://github.com/aliyun/aliyun-tablestore-csharp-sdk</Description>
+    <Authors>DawsonLiu</Authors>
+    <Company>Wicture</Company>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.5.1" />
+    <PackageReference Include="Google.Protobuf.Tools" Version="3.5.1" />
+  </ItemGroup>
+
+</Project>
