@@ -10,8 +10,7 @@
  */
 
 
-using System;
-using PB = Wicture.Aliyun.TableStore.Protocol;
+using PB = com.alicloud.openservices.tablestore.core.protocol;
 
 namespace Aliyun.TableStore.Handler
 {
@@ -27,7 +26,9 @@ namespace Aliyun.TableStore.Handler
         private void throwOTSServerException(Context context)
         {
             var exception = new OTSServerException(context.APIName, context.HttpResponseStatusCode);
-            context.ClientConfig.OTSErrorLogHandler?.Invoke(exception.ToString() + "\n");
+            if (context.ClientConfig.OTSErrorLogHandler != null) {
+                context.ClientConfig.OTSErrorLogHandler(exception.ToString() + "\n");
+            }
             throw exception;
         }
 
@@ -44,19 +45,21 @@ namespace Aliyun.TableStore.Handler
                 return;
             }
             
+            var builder = PB.Error.CreateBuilder();
             string errorCode = null, errorMessage = null;
-
-            try
+            
+            try 
             {
-                var message = PB.Error.Parser.ParseFrom(context.HttpResponseBody);
+                builder.MergeFrom(context.HttpResponseBody);
+                var message = builder.Build();
                 errorCode = message.Code;
                 errorMessage = message.Message;
-            }
-            catch (Exception)
-            {
+            } catch (Google.ProtocolBuffers.InvalidProtocolBufferException) {
+                throwOTSServerException(context);
+            } catch (Google.ProtocolBuffers.UninitializedMessageException) {
                 throwOTSServerException(context);
             }
-
+            
             string requestID;
             if (context.HttpResponseHeaders.ContainsKey("x-ots-requestid")) 
             {
@@ -74,9 +77,12 @@ namespace Aliyun.TableStore.Handler
                 errorMessage,
                 requestID
             );
-            if (context.ClientConfig.OTSErrorLogHandler != null) {
-                context.ClientConfig.OTSErrorLogHandler(exception.ToString());
+
+            if(context.ClientConfig.OTSErrorLogHandler != null)
+            {
+                context.ClientConfig.OTSErrorLogHandler.Invoke(exception.ToString());
             }
+
             throw exception;
         }
     }

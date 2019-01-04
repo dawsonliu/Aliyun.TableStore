@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
@@ -9,10 +9,15 @@
     <PackageLicenseUrl>https://raw.githubusercontent.com/dawsonliu/Aliyun.TableStore/master/LICENSE</PackageLicenseUrl>
     <RepositoryUrl></RepositoryUrl>
     <PackageProjectUrl>https://github.com/dawsonliu/Aliyun.TableStore</PackageProjectUrl>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.Protobuf" Version="3.5.1" />
+    <PackageReference Include="Bosima.Google.ProtocolBuffers" Version="1.0.0" />
+    <PackageReference Include="Bosima.Google.ProtocolBuffers.Serialization" Version="1.0.0" />
+    <PackageReference Include="System.Net.Http" Version="4.3.3" />
   </ItemGroup>
 
 </Project>

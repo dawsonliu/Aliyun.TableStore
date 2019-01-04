@@ -52,7 +52,7 @@ namespace Aliyun.TableStore
         private HttpClient client;
 
         private OTSHandler OTSHandler;
-        private OTSClientConfig ClientConfig;
+        private readonly OTSClientConfig ClientConfig;
 
         #endregion
 
@@ -61,13 +61,13 @@ namespace Aliyun.TableStore
         /// <summary>
         /// OTSClient的构造函数。
         /// </summary>
-        /// <param name="endPoint">OTS服务的地址（例如 'http://instance.cn-hangzhou.ots.aliyun.com:80'），必须以'http://'开头。</param>
+        /// <param name="endPoint">OTS服务的地址（例如 'http://instance.cn-hangzhou.ots.aliyun.com:80'），必须以'http://'或者'https://'开头。</param>
         /// <param name="accessKeyID">OTS的Access Key ID，通过官方网站申请。</param>
         /// <param name="accessKeySecret">OTS的Access Key Secret，通过官方网站申请。</param>
         /// <param name="instanceName">OTS实例名，通过官方网站控制台创建。</param>
         /// 
         public OTSClient(string endPoint, string accessKeyID, string accessKeySecret, string instanceName)
-            : this(new OTSClientConfig(endPoint, accessKeyID, accessKeySecret, instanceName)) {}
+            : this(new OTSClientConfig(endPoint, accessKeyID, accessKeySecret, instanceName)) { }
 
         // public OTSClient(string configFileName) { }
         // TODO enable client config file later
@@ -81,9 +81,12 @@ namespace Aliyun.TableStore
             ClientConfig = config;
             OTSHandler = new OTSHandler();
 
-            client = new HttpClient();
-            client.BaseAddress = new Uri(ClientConfig.EndPoint);
-            ServicePointManager.DefaultConnectionLimit = config.ConnectionLimit;  
+            client = new HttpClient
+            {
+                BaseAddress = new Uri(ClientConfig.EndPoint)
+            };
+
+            ServicePointManager.DefaultConnectionLimit = config.ConnectionLimit;
             OTSClientTestHelper.Reset();
         }
 
@@ -204,7 +207,7 @@ namespace Aliyun.TableStore
         {
             return CallAsync<UpdateTableRequest, UpdateTableResponse>("/UpdateTable", request);
         }
-        
+
         // DescribeTable
         /// <summary>
         /// 查询指定表的结构信息和预留读写吞吐量设置信息。
@@ -515,8 +518,8 @@ namespace Aliyun.TableStore
         /// 根据范围条件获取多行数据，返回用来迭代每一行数据的迭代器。
         /// </summary>
         /// <param name="request"><see cref="GetIteratorRequest"/></param>
-        /// <returns>返回<see cref="RowDataFromGetRange"/>的迭代器。</returns>
-        public IEnumerable<RowDataFromGetRange> GetRangeIterator(GetIteratorRequest request)
+        /// <returns>返回<see cref="Row"/>的迭代器。</returns>
+        public IEnumerable<Row> GetRangeIterator(GetIteratorRequest request)
         {
             int? leftCount = request.QueryCriteria.Limit;
 
@@ -562,7 +565,7 @@ namespace Aliyun.TableStore
         /// <param name="consumedCapacityUnitCounter">用户传入的CapacityUnit消耗计数器。</param>
         /// <param name="columnsToGet">可选参数，表示要获取的列的名称列表；默认获取所有列。</param>
         /// <param name="count">可选参数，表示最多获取多少行；默认获取范围内的所有行。</param>
-        /// <returns>返回<see cref="RowDataFromGetRange"/>的迭代器。</returns>
+        /// <returns>返回<see cref="Row"/>的迭代器。</returns>
         /// <example>
         /// <code>
         /// var startPrimaryKey = new PrimaryKey();
@@ -588,40 +591,40 @@ namespace Aliyun.TableStore
         /// </code>
         /// </example>
         [Obsolete("GetRangeIterator(string ...) is deprecated, please use GetRangeIterator(GetIteratorRequest request) instead.")]
-        public IEnumerable<RowDataFromGetRange> GetRangeIterator(
-            string tableName, 
+        public IEnumerable<Row> GetRangeIterator(
+            string tableName,
             GetRangeDirection direction,
-            PrimaryKey inclusiveStartPrimaryKey, 
-            PrimaryKey exclusiveEndPrimaryKey, 
-            CapacityUnit consumedCapacityUnitCounter, 
-            HashSet<string> columnsToGet = null, 
+            PrimaryKey inclusiveStartPrimaryKey,
+            PrimaryKey exclusiveEndPrimaryKey,
+            CapacityUnit consumedCapacityUnitCounter,
+            HashSet<string> columnsToGet = null,
             int? count = null,
-            ColumnCondition condition = null)
+            IColumnCondition condition = null)
         {
             int? leftCount = count;
-            
-            if (leftCount != null && leftCount < 0) 
+
+            if (leftCount != null && leftCount < 0)
             {
                 throw new OTSClientException("the value of count must be larger than 0");
             }
-            
+
             PrimaryKey nextStartPrimaryKey = inclusiveStartPrimaryKey;
-            
+
             while (nextStartPrimaryKey != null)
             {
                 var request = new GetRangeRequest(
-                    tableName, direction, nextStartPrimaryKey, exclusiveEndPrimaryKey, 
+                    tableName, direction, nextStartPrimaryKey, exclusiveEndPrimaryKey,
                     columnsToGet, leftCount, condition);
-                
+
                 var response = GetRange(request);
                 consumedCapacityUnitCounter.Read += response.ConsumedCapacityUnit.Read;
                 nextStartPrimaryKey = response.NextPrimaryKey;
-                
+
                 foreach (var rowData in response.RowDataList)
                 {
                     yield return rowData;
                 }
-                
+
                 if (leftCount != null)
                 {
                     leftCount -= response.RowDataList.Count;
@@ -655,12 +658,128 @@ namespace Aliyun.TableStore
 
         #endregion
 
+        #region Search Operations
+        public ListSearchIndexResponse ListSearchIndex(ListSearchIndexRequest request)
+        {
+            return GetResponseFromAsyncTask(ListSearchIndexAsync(request));
+        }
+
+        /// <summary>
+        /// ListSearchIndex的异步形式。
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        public Task<ListSearchIndexResponse> ListSearchIndexAsync(ListSearchIndexRequest request)
+        {
+            return CallAsync<ListSearchIndexRequest, ListSearchIndexResponse>("/ListSearchIndex", request);
+        }
+
+        public CreateSearchIndexResponse CreateSearchIndex(CreateSearchIndexRequest request)
+        {
+            return GetResponseFromAsyncTask(CreateSearchIndexAsync(request));
+        }
+
+        /// <summary>
+        /// CreateSearchIndex的异步形式。
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        public Task<CreateSearchIndexResponse> CreateSearchIndexAsync(CreateSearchIndexRequest request)
+        {
+            return CallAsync<CreateSearchIndexRequest, CreateSearchIndexResponse>("/CreateSearchIndex", request);
+        }
+
+        public DeleteSearchIndexResponse DeleteSearchIndex(DeleteSearchIndexRequest request)
+        {
+            return GetResponseFromAsyncTask(DeleteSearchIndexAsync(request));
+        }
+
+        /// <summary>
+        /// DeleteSearchIndex的异步形式。
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        public Task<DeleteSearchIndexResponse> DeleteSearchIndexAsync(DeleteSearchIndexRequest request)
+        {
+            return CallAsync<DeleteSearchIndexRequest, DeleteSearchIndexResponse>("/DeleteSearchIndex", request);
+        }
+
+        public DescribeSearchIndexResponse DescribeSearchIndex(DescribeSearchIndexRequest request)
+        {
+            return GetResponseFromAsyncTask(DescribeSearchIndexAsync(request));
+        }
+
+        /// <summary>
+        /// DescribeSearchIndex的异步形式。
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        public Task<DescribeSearchIndexResponse> DescribeSearchIndexAsync(DescribeSearchIndexRequest request)
+        {
+            return CallAsync<DescribeSearchIndexRequest, DescribeSearchIndexResponse>("/DescribeSearchIndex", request);
+        }
+
+        public SearchResponse Search(SearchRequest request)
+        {
+            return GetResponseFromAsyncTask(SearchAsync(request));
+        }
+
+        /// <summary>
+        /// Search的异步形式。
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        public Task<SearchResponse> SearchAsync(SearchRequest request)
+        {
+            return CallAsync<SearchRequest, SearchResponse>("/Search", request);
+        }
+        #endregion
+
+
+        #region Search Operations
+
+
+        public CreateGlobalIndexResponse CreateGlobalIndex(CreateGlobalIndexRequest request)
+        {
+            return GetResponseFromAsyncTask(CreateGlobalIndexAsync(request));
+        }
+
+        /// <summary>
+        /// CreateGlobalIndex的异步形式。
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        public Task<CreateGlobalIndexResponse> CreateGlobalIndexAsync(CreateGlobalIndexRequest request)
+        {
+            return CallAsync<CreateGlobalIndexRequest, CreateGlobalIndexResponse>("/CreateIndex", request);
+        }
+
+        public DeleteGlobalIndexResponse DeleteGlobalIndex(DeleteGlobalIndexRequest request)
+        {
+            return GetResponseFromAsyncTask(DeleteGlobalIndexAsync(request));
+        }
+
+        /// <summary>
+        /// CreateGlobalIndex的异步形式。
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        public Task<DeleteGlobalIndexResponse> DeleteGlobalIndexAsync(DeleteGlobalIndexRequest request)
+        {
+            return CallAsync<DeleteGlobalIndexRequest, DeleteGlobalIndexResponse>("/DropIndex", request);
+        }
+
+        #endregion
+
+
         #region Private Function
 
-        protected void ThrowIfNullRequest<TRequestType>(TRequestType request)
+        private void ThrowIfNullRequest<TRequestType>(TRequestType request)
         {
             if (request == null)
+            {
                 throw new ArgumentNullException("request");
+            }
         }
 
 
@@ -670,12 +789,14 @@ namespace Aliyun.TableStore
         {
             ThrowIfNullRequest(request);
 
-            Context otsContext = new Context();
-            otsContext.ClientConfig = ClientConfig;
-            otsContext.APIName = apiName;
-            otsContext.OTSRequest = request;
-            otsContext.OTSReponse = new TResponse();
-            otsContext.HttpClient = client;
+            Context otsContext = new Context
+            {
+                ClientConfig = ClientConfig,
+                APIName = apiName,
+                OTSRequest = request,
+                OTSReponse = new TResponse(),
+                HttpClient = client
+            };
 
             OTSHandler.HandleBefore(otsContext);
 
@@ -693,12 +814,13 @@ namespace Aliyun.TableStore
             {
                 task.Wait();
             }
-            catch (System.AggregateException e)
+            catch (AggregateException e)
             {
                 if (ClientConfig.OTSErrorLogHandler != null)
                 {
-                    ClientConfig.OTSErrorLogHandler("Exception:\n" + e.GetBaseException().StackTrace + "\n");
+                    ClientConfig.OTSErrorLogHandler.Invoke("Exception:\n" + e.GetBaseException().StackTrace + "\n");
                 }
+
                 throw e.GetBaseException();
             }
 

@@ -47,6 +47,7 @@ namespace Aliyun.TableStore.Response
             {
                 result.AddRange(tableResult.Value.Where(_ => !_.IsOK));
             }
+
             return result;
         }
     }

@@ -16,12 +16,12 @@ namespace Aliyun.TableStore.Handler
     {
         protected PipelineHandler InnerHandler { get; set; }
 
-        public PipelineHandler()
+        protected PipelineHandler()
         {
             InnerHandler = null;
         }
 
-        public PipelineHandler(PipelineHandler innerHandler)
+        protected PipelineHandler(PipelineHandler innerHandler)
         {
             InnerHandler = innerHandler;
         }
